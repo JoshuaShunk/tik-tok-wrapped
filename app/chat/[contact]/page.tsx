@@ -45,7 +45,7 @@ export default function ChatDetailPage() {
           (a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime()
         );
         setMessages(allMessages);
-      } catch (err) {
+      } catch (_err) {
         setError("Error reading chat data.");
       }
     } else {
@@ -71,7 +71,7 @@ export default function ChatDetailPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Fixed navigation: Back to Chats and Back to Dashboard */}
+      {/* Fixed navigation: Back to Chats and Dashboard */}
       <div className="fixed top-0 left-0 flex gap-4 p-4 bg-white shadow z-10">
         <Link href="/chat" className="text-blue-600 hover:underline">
           &larr; Back to Chats

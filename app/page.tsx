@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Chart } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -26,6 +26,7 @@ ChartJS.register(
   Legend
 );
 
+// Interfaces for our data
 interface ProfileData {
   name: string;
   birthDate: string;
@@ -62,7 +63,7 @@ export default function HomePage() {
 
   const myUsername = "joshuashunk".toLowerCase();
 
-  // On mount, check if data exists in localStorage and load it if so
+  // Check localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem("tikTokData");
     if (stored) {
@@ -72,11 +73,78 @@ export default function HomePage() {
         if (!decompressed) throw new Error("Decompression failed");
         const jsonData = JSON.parse(decompressed);
         processData(jsonData);
-      } catch (err) {
-        console.error("Error processing stored data:", err);
+      } catch (_err) {
+        // Ignore errors here; user can reupload.
       }
     }
   }, []);
+
+  // We wrap processData in useCallback to satisfy the linter.
+  const processData = useCallback(
+    (data: any) => {
+      // Process Profile
+      const profileData: ProfileData = {
+        name:
+          data.Profile?.["Profile Information"]?.ProfileMap?.userName ||
+          "Unknown",
+        birthDate:
+          data.Profile?.["Profile Information"]?.ProfileMap?.birthDate ||
+          "Unknown",
+      };
+      setProfile(profileData);
+
+      // Process Direct Messages & Sent Messages
+      const dmData =
+        data["Direct Messages"]?.["Chat History"]?.ChatHistory || {};
+      const dmSummaryObj: DMSummary = {};
+      const sentMessagesList: SentMessage[] = [];
+      Object.keys(dmData).forEach((threadName: string) => {
+        const contact = threadName
+          .replace("Chat History with", "")
+          .replace(":", "")
+          .trim()
+          .toLowerCase();
+        const messages = dmData[threadName];
+        if (Array.isArray(messages)) {
+          dmSummaryObj[contact] =
+            (dmSummaryObj[contact] || 0) + messages.length;
+          messages.forEach((msg: any) => {
+            if (msg.From && msg.From.toLowerCase() === myUsername) {
+              sentMessagesList.push({ Contact: contact, Date: msg.Date });
+            }
+          });
+        }
+      });
+      setDmSummary(dmSummaryObj);
+      setSentMessages(sentMessagesList);
+
+      // Process Login History
+      const loginData =
+        data.Activity?.["Login History"]?.["LoginHistoryList"] || [];
+      const loginList: LoginHistory[] = loginData.map((login: any) => ({
+        Date: login.Date || "Unknown",
+      }));
+      setLoginHistory(loginList);
+
+      // Process Shopping Summary
+      const shoppingData = data["Tiktok Shopping"];
+      if (shoppingData) {
+        const orderHistories =
+          shoppingData["Order History"]?.["OrderHistories"] || {};
+        let totalSpending = 0;
+        let totalOrders = 0;
+        Object.keys(orderHistories).forEach((orderId) => {
+          const order = orderHistories[orderId];
+          const totalPriceStr = order.total_price || "0 USD";
+          const totalPrice = parseFloat(totalPriceStr.split(" ")[0]) || 0;
+          totalSpending += totalPrice;
+          totalOrders += 1;
+        });
+        setShoppingSummary({ totalSpending, totalOrders });
+      }
+    },
+    [myUsername]
+  );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -89,13 +157,14 @@ export default function HomePage() {
           try {
             const jsonData = JSON.parse(result);
             processData(jsonData);
+            // Compress and store the data in localStorage
             localStorage.setItem(
               "tikTokData",
               LZString.compressToUTF16(JSON.stringify(jsonData))
             );
             setDataExists(true);
-          } catch (err) {
-            console.error("JSON parsing error:", err);
+          } catch (_err) {
+            console.error("JSON parsing error:", _err);
             setError("Invalid JSON file");
           }
         } else {
@@ -106,74 +175,13 @@ export default function HomePage() {
     }
   };
 
-  const processData = (data: any) => {
-    // Process Profile
-    const profileData: ProfileData = {
-      name:
-        data.Profile?.["Profile Information"]?.ProfileMap?.userName ||
-        "Unknown",
-      birthDate:
-        data.Profile?.["Profile Information"]?.ProfileMap?.birthDate ||
-        "Unknown",
-    };
-    setProfile(profileData);
-
-    // Process Direct Messages and Sent Messages
-    const dmData = data["Direct Messages"]?.["Chat History"]?.ChatHistory || {};
-    const dmSummaryObj: DMSummary = {};
-    const sentMessagesList: SentMessage[] = [];
-    Object.keys(dmData).forEach((threadName: string) => {
-      const contact = threadName
-        .replace("Chat History with", "")
-        .replace(":", "")
-        .trim()
-        .toLowerCase();
-      const messages = dmData[threadName];
-      if (Array.isArray(messages)) {
-        dmSummaryObj[contact] = (dmSummaryObj[contact] || 0) + messages.length;
-        messages.forEach((msg: any) => {
-          if (msg.From && msg.From.toLowerCase() === myUsername) {
-            sentMessagesList.push({ Contact: contact, Date: msg.Date });
-          }
-        });
-      }
-    });
-    setDmSummary(dmSummaryObj);
-    setSentMessages(sentMessagesList);
-
-    // Process Login History
-    const loginData =
-      data.Activity?.["Login History"]?.["LoginHistoryList"] || [];
-    const loginList: LoginHistory[] = loginData.map((login: any) => ({
-      Date: login.Date || "Unknown",
-    }));
-    setLoginHistory(loginList);
-
-    // Process Shopping Summary
-    const shoppingData = data["Tiktok Shopping"];
-    if (shoppingData) {
-      const orderHistories =
-        shoppingData["Order History"]?.["OrderHistories"] || {};
-      let totalSpending = 0;
-      let totalOrders = 0;
-      Object.keys(orderHistories).forEach((orderId) => {
-        const order = orderHistories[orderId];
-        const totalPriceStr = order.total_price || "0 USD";
-        const totalPrice = parseFloat(totalPriceStr.split(" ")[0]) || 0;
-        totalSpending += totalPrice;
-        totalOrders += 1;
-      });
-      setShoppingSummary({ totalSpending, totalOrders });
-    }
-  };
-
   const handleConfirm = () => {
     if (profile) {
       setConfirmed(true);
     }
   };
 
-  // Option to clear existing data and reupload
+  // Option to clear data for a new upload
   const handleClearData = () => {
     localStorage.removeItem("tikTokData");
     setProfile(null);
@@ -185,19 +193,29 @@ export default function HomePage() {
     setDataExists(false);
   };
 
-  const prepareChartData = () => {
-    const chartData: any = { labels: [] as string[], datasets: [] as any[] };
-    const grouped = sentMessages.reduce((acc: any, msg) => {
+  // Prepare chart data for messages sent per month.
+  const prepareChartData = (): { labels: string[]; datasets: any[] } => {
+    const chartData: { labels: string[]; datasets: any[] } = {
+      labels: [],
+      datasets: [],
+    };
+    const grouped: Record<string, Record<string, number>> = {};
+
+    sentMessages.forEach((msg) => {
       const date = new Date(msg.Date);
       const month = date.toLocaleString("default", {
         month: "short",
         year: "numeric",
       });
-      if (!acc[month]) acc[month] = {};
-      if (!acc[month][msg.Contact]) acc[month][msg.Contact] = 0;
-      acc[month][msg.Contact] += 1;
-      return acc;
-    }, {});
+      if (!grouped[month]) {
+        grouped[month] = {};
+      }
+      if (!grouped[month][msg.Contact]) {
+        grouped[month][msg.Contact] = 0;
+      }
+      grouped[month][msg.Contact] += 1;
+    });
+
     const months = Object.keys(grouped).sort(
       (a, b) => new Date(a).getTime() - new Date(b).getTime()
     );
@@ -217,7 +235,7 @@ export default function HomePage() {
     return chartData;
   };
 
-  const getRandomColor = () => {
+  const getRandomColor = (): string => {
     const letters = "0123456789ABCDEF";
     let color = "#";
     for (let i = 0; i < 6; i++) {
@@ -226,17 +244,19 @@ export default function HomePage() {
     return color;
   };
 
-  const prepareLoginChartData = () => {
-    const grouped = loginHistory.reduce((acc: any, login) => {
+  const prepareLoginChartData = (): { labels: string[]; datasets: any[] } => {
+    const grouped: Record<string, number> = {};
+    loginHistory.forEach((login) => {
       const date = new Date(login.Date);
       const month = date.toLocaleString("default", {
         month: "short",
         year: "numeric",
       });
-      if (!acc[month]) acc[month] = 0;
-      acc[month] += 1;
-      return acc;
-    }, {});
+      if (!grouped[month]) {
+        grouped[month] = 0;
+      }
+      grouped[month] += 1;
+    });
     const months = Object.keys(grouped).sort(
       (a, b) => new Date(a).getTime() - new Date(b).getTime()
     );
@@ -255,7 +275,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       {!confirmed ? (
         <div className="flex flex-col items-center justify-center py-16">
           <h2 className="text-4xl font-bold mb-4 text-gray-800">
@@ -306,14 +326,12 @@ export default function HomePage() {
       ) : (
         <div className="px-6 pb-8">
           <div className="flex justify-between items-center mb-8">
-            <div>
-              <button
-                onClick={handleClearData}
-                className="text-red-600 hover:underline"
-              >
-                Upload New File
-              </button>
-            </div>
+            <button
+              onClick={handleClearData}
+              className="text-red-600 hover:underline"
+            >
+              Upload New File
+            </button>
             <Link href="/" className="text-blue-600 hover:underline">
               Dashboard
             </Link>

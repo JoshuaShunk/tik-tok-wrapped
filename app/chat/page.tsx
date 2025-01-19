@@ -38,7 +38,7 @@ export default function ChatPage() {
           }
         });
         setChatSummaries(summaries);
-      } catch (err) {
+      } catch (_err) {
         setError("Error reading data from localStorage.");
       }
     } else {
@@ -50,7 +50,7 @@ export default function ChatPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Fixed Back Button to Dashboard */}
+      {/* Fixed navigation: Back to Dashboard */}
       <div className="fixed top-0 left-0 p-4">
         <Link href="/" className="text-blue-600 hover:underline">
           &larr; Back to Dashboard
