@@ -596,7 +596,6 @@ const rows = dmSummary
         ) : (
           <div className="px-6 pb-8">
             <div className="relative mb-8 pt-8 w-full flex items-center justify-center">
-
               <h2 className="text-4xl font-bold">Your TikTok Wrapped</h2>
             </div>
             {profile && (

@@ -7,8 +7,8 @@ export default function ClientHeader({
   isConfirmed,
   onClearData,
 }: {
-  isConfirmed: boolean;
-  onClearData: () => void;
+  isConfirmed?: boolean; // Optional to avoid runtime issues
+  onClearData?: () => void; // Optional to avoid runtime issues
 }) {
   return (
     <header className="w-full bg-white border-b py-4 px-6 fixed top-0 left-0 z-10 flex justify-between items-center">
