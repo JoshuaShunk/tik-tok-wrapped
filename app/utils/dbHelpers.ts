@@ -39,6 +39,20 @@ export async function setTikTokData(data: string): Promise<void> {
   });
 }
 
+/**
+ * Remove the stored TikTok data from IndexedDB.
+ */
+export async function removeTikTokData(): Promise<void> {
+  const db = await openDatabase();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction("DataStore", "readwrite");
+    const store = transaction.objectStore("DataStore");
+    const request = store.delete("tikTokData");
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export async function fetchDataFromDB(
   setError: React.Dispatch<React.SetStateAction<string | null>>
 ): Promise<any | null> {
