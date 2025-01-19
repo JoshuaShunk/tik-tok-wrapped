@@ -1,4 +1,4 @@
-// app/chat/page.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -38,7 +38,7 @@ export default function ChatPage() {
           }
         });
         setChatSummaries(summaries);
-      } catch (_err) {
+      } catch {
         setError("Error reading data from localStorage.");
       }
     } else {

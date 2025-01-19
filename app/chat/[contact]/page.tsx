@@ -1,4 +1,4 @@
-// app/chat/[contact]/page.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -45,7 +45,7 @@ export default function ChatDetailPage() {
           (a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime()
         );
         setMessages(allMessages);
-      } catch (_err) {
+      } catch {
         setError("Error reading chat data.");
       }
     } else {

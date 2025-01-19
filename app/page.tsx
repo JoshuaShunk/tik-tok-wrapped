@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -50,6 +51,56 @@ interface ShoppingSummary {
   totalOrders: number;
 }
 
+// Wrap processData in useCallback so that it can be used in the useEffect dependency array.
+const useProcessData = (myUsername: string) =>
+  useCallback(
+    (data: any) => {
+      // Process Profile
+      const profileData: ProfileData = {
+        name:
+          data.Profile?.["Profile Information"]?.ProfileMap?.userName ||
+          "Unknown",
+        birthDate:
+          data.Profile?.["Profile Information"]?.ProfileMap?.birthDate ||
+          "Unknown",
+      };
+      // We'll update state via setters passed down later.
+      return {
+        profileData,
+        // Process Direct Messages & Sent Messages
+        dmData: (() => {
+          const dmData =
+            data["Direct Messages"]?.["Chat History"]?.ChatHistory || {};
+          const dmSummaryObj: DMSummary = {};
+          const sentMessagesList: SentMessage[] = [];
+          Object.keys(dmData).forEach((threadName: string) => {
+            const contact = threadName
+              .replace("Chat History with", "")
+              .replace(":", "")
+              .trim()
+              .toLowerCase();
+            const messages = dmData[threadName];
+            if (Array.isArray(messages)) {
+              dmSummaryObj[contact] =
+                (dmSummaryObj[contact] || 0) + messages.length;
+              messages.forEach((msg: any) => {
+                if (msg.From && msg.From.toLowerCase() === myUsername) {
+                  sentMessagesList.push({ Contact: contact, Date: msg.Date });
+                }
+              });
+            }
+          });
+          return { dmSummaryObj, sentMessagesList };
+        })(),
+        // Process Login History
+        loginData: data.Activity?.["Login History"]?.["LoginHistoryList"] || [],
+        // Process Shopping Summary
+        shoppingData: data["Tiktok Shopping"],
+      };
+    },
+    [myUsername]
+  );
+
 export default function HomePage() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [dmSummary, setDmSummary] = useState<DMSummary | null>(null);
@@ -62,8 +113,9 @@ export default function HomePage() {
   const [dataExists, setDataExists] = useState<boolean>(false);
 
   const myUsername = "joshuashunk".toLowerCase();
+  const processData = useProcessData(myUsername);
 
-  // Check localStorage on mount
+  // Check if data exists in localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem("tikTokData");
     if (stored) {
@@ -72,99 +124,75 @@ export default function HomePage() {
         const decompressed = LZString.decompressFromUTF16(stored);
         if (!decompressed) throw new Error("Decompression failed");
         const jsonData = JSON.parse(decompressed);
-        processData(jsonData);
-      } catch (_err) {
-        // Ignore errors here; user can reupload.
+        const { profileData, dmData, loginData, shoppingData } =
+          processData(jsonData);
+        setProfile(profileData);
+        setDmSummary(dmData.dmSummaryObj);
+        setSentMessages(dmData.sentMessagesList);
+        const loginList: LoginHistory[] = loginData.map((login: any) => ({
+          Date: login.Date || "Unknown",
+        }));
+        setLoginHistory(loginList);
+        if (shoppingData) {
+          const orderHistories =
+            shoppingData["Order History"]?.["OrderHistories"] || {};
+          let totalSpending = 0;
+          let totalOrders = 0;
+          Object.keys(orderHistories).forEach((orderId) => {
+            const order = orderHistories[orderId];
+            const totalPriceStr = order.total_price || "0 USD";
+            const totalPrice = parseFloat(totalPriceStr.split(" ")[0]) || 0;
+            totalSpending += totalPrice;
+            totalOrders += 1;
+          });
+          setShoppingSummary({ totalSpending, totalOrders });
+        }
+      } catch {
+        // Ignore errors, user may choose to reupload.
       }
     }
-  }, []);
-
-  // We wrap processData in useCallback to satisfy the linter.
-  const processData = useCallback(
-    (data: any) => {
-      // Process Profile
-      const profileData: ProfileData = {
-        name:
-          data.Profile?.["Profile Information"]?.ProfileMap?.userName ||
-          "Unknown",
-        birthDate:
-          data.Profile?.["Profile Information"]?.ProfileMap?.birthDate ||
-          "Unknown",
-      };
-      setProfile(profileData);
-
-      // Process Direct Messages & Sent Messages
-      const dmData =
-        data["Direct Messages"]?.["Chat History"]?.ChatHistory || {};
-      const dmSummaryObj: DMSummary = {};
-      const sentMessagesList: SentMessage[] = [];
-      Object.keys(dmData).forEach((threadName: string) => {
-        const contact = threadName
-          .replace("Chat History with", "")
-          .replace(":", "")
-          .trim()
-          .toLowerCase();
-        const messages = dmData[threadName];
-        if (Array.isArray(messages)) {
-          dmSummaryObj[contact] =
-            (dmSummaryObj[contact] || 0) + messages.length;
-          messages.forEach((msg: any) => {
-            if (msg.From && msg.From.toLowerCase() === myUsername) {
-              sentMessagesList.push({ Contact: contact, Date: msg.Date });
-            }
-          });
-        }
-      });
-      setDmSummary(dmSummaryObj);
-      setSentMessages(sentMessagesList);
-
-      // Process Login History
-      const loginData =
-        data.Activity?.["Login History"]?.["LoginHistoryList"] || [];
-      const loginList: LoginHistory[] = loginData.map((login: any) => ({
-        Date: login.Date || "Unknown",
-      }));
-      setLoginHistory(loginList);
-
-      // Process Shopping Summary
-      const shoppingData = data["Tiktok Shopping"];
-      if (shoppingData) {
-        const orderHistories =
-          shoppingData["Order History"]?.["OrderHistories"] || {};
-        let totalSpending = 0;
-        let totalOrders = 0;
-        Object.keys(orderHistories).forEach((orderId) => {
-          const order = orderHistories[orderId];
-          const totalPriceStr = order.total_price || "0 USD";
-          const totalPrice = parseFloat(totalPriceStr.split(" ")[0]) || 0;
-          totalSpending += totalPrice;
-          totalOrders += 1;
-        });
-        setShoppingSummary({ totalSpending, totalOrders });
-      }
-    },
-    [myUsername]
-  );
+  }, [processData]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (event: ProgressEvent<FileReader>) => {
+      reader.onload = (event) => {
         const result = event.target?.result;
         if (result && typeof result === "string") {
           try {
             const jsonData = JSON.parse(result);
-            processData(jsonData);
-            // Compress and store the data in localStorage
+            const { profileData, dmData, loginData, shoppingData } =
+              processData(jsonData);
+            setProfile(profileData);
+            setDmSummary(dmData.dmSummaryObj);
+            setSentMessages(dmData.sentMessagesList);
+            const loginList: LoginHistory[] = loginData.map((login: any) => ({
+              Date: login.Date || "Unknown",
+            }));
+            setLoginHistory(loginList);
+            if (shoppingData) {
+              const orderHistories =
+                shoppingData["Order History"]?.["OrderHistories"] || {};
+              let totalSpending = 0;
+              let totalOrders = 0;
+              Object.keys(orderHistories).forEach((orderId) => {
+                const order = orderHistories[orderId];
+                const totalPriceStr = order.total_price || "0 USD";
+                const totalPrice = parseFloat(totalPriceStr.split(" ")[0]) || 0;
+                totalSpending += totalPrice;
+                totalOrders += 1;
+              });
+              setShoppingSummary({ totalSpending, totalOrders });
+            }
             localStorage.setItem(
               "tikTokData",
               LZString.compressToUTF16(JSON.stringify(jsonData))
             );
             setDataExists(true);
-          } catch (_err) {
-            console.error("JSON parsing error:", _err);
+          } catch {
+            console.error("JSON parsing error");
             setError("Invalid JSON file");
           }
         } else {
@@ -181,7 +209,7 @@ export default function HomePage() {
     }
   };
 
-  // Option to clear data for a new upload
+  // Allow the user to clear stored data and reupload a file
   const handleClearData = () => {
     localStorage.removeItem("tikTokData");
     setProfile(null);
@@ -207,12 +235,8 @@ export default function HomePage() {
         month: "short",
         year: "numeric",
       });
-      if (!grouped[month]) {
-        grouped[month] = {};
-      }
-      if (!grouped[month][msg.Contact]) {
-        grouped[month][msg.Contact] = 0;
-      }
+      if (!grouped[month]) grouped[month] = {};
+      if (!grouped[month][msg.Contact]) grouped[month][msg.Contact] = 0;
       grouped[month][msg.Contact] += 1;
     });
 
@@ -252,9 +276,7 @@ export default function HomePage() {
         month: "short",
         year: "numeric",
       });
-      if (!grouped[month]) {
-        grouped[month] = 0;
-      }
+      if (!grouped[month]) grouped[month] = 0;
       grouped[month] += 1;
     });
     const months = Object.keys(grouped).sort(
