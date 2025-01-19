@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import LZString from "lz-string";
+import { fetchDataFromDB } from "@/app/utils/dbHelpers";
 
 interface Message {
   Content: string;
@@ -19,12 +19,9 @@ export default function ChatDetailPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const dataString = localStorage.getItem("tikTokData");
-    if (dataString) {
-      try {
-        const decompressed = LZString.decompressFromUTF16(dataString);
-        if (!decompressed) throw new Error("Decompression failed");
-        const data = JSON.parse(decompressed);
+    (async () => {
+      const data = await fetchDataFromDB(setError);
+      if (data) {
         const dmData =
           data["Direct Messages"]?.["Chat History"]?.ChatHistory || {};
         let allMessages: Message[] = [];
@@ -45,14 +42,8 @@ export default function ChatDetailPage() {
           (a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime()
         );
         setMessages(allMessages);
-      } catch {
-        setError("Error reading chat data.");
       }
-    } else {
-      setError(
-        "No TikTok data found. Please upload your JSON file on the home page."
-      );
-    }
+    })();
   }, [contact]);
 
   if (error) {
@@ -71,7 +62,6 @@ export default function ChatDetailPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Fixed navigation: Back to Chats and Dashboard */}
       <div className="fixed top-0 left-0 flex gap-4 p-4 bg-white shadow z-10">
         <Link href="/chat" className="text-blue-600 hover:underline">
           &larr; Back to Chats

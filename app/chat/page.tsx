@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import LZString from "lz-string";
+import { fetchDataFromDB } from "@/app/utils/dbHelpers";
 
 interface ChatSummary {
   contact: string;
@@ -15,12 +15,9 @@ export default function ChatPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const dataString = localStorage.getItem("tikTokData");
-    if (dataString) {
-      try {
-        const decompressed = LZString.decompressFromUTF16(dataString);
-        if (!decompressed) throw new Error("Decompression failed");
-        const data = JSON.parse(decompressed);
+    (async () => {
+      const data = await fetchDataFromDB(setError);
+      if (data) {
         const dmData =
           data["Direct Messages"]?.["Chat History"]?.ChatHistory || {};
         const summaries: ChatSummary[] = [];
@@ -38,19 +35,12 @@ export default function ChatPage() {
           }
         });
         setChatSummaries(summaries);
-      } catch {
-        setError("Error reading data from localStorage.");
       }
-    } else {
-      setError(
-        "No TikTok data found. Please upload your JSON file on the home page."
-      );
-    }
+    })();
   }, []);
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Fixed navigation: Back to Dashboard */}
       <div className="fixed top-0 left-0 p-4">
         <Link href="/" className="text-blue-600 hover:underline">
           &larr; Back to Dashboard
