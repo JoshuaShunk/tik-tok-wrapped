@@ -9,6 +9,7 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  LineController, // Import LineController
   Title,
   Tooltip,
   Legend,
@@ -72,6 +73,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  LineController, // Add this line
   Title,
   Tooltip,
   Legend
