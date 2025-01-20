@@ -1,5 +1,8 @@
 // utils/dataProcessing.ts
 
+// =======================
+// Define Interfaces
+// =======================
 export interface ProfileData {
   name: string;
   birthDate: string;
@@ -30,7 +33,7 @@ export interface ShoppingItem {
   productName: string;
   variationName: string;
   quantity: number;
-  totalPrice: number;    // entire order's total in a naive approach
+  totalPrice: number; // entire order's total in a naive approach
   orderStatus: string;
 }
 
@@ -47,9 +50,67 @@ export interface ProcessedTikTokData {
     sentMessagesList: SentMessage[];
     chatMessages: Record<string, ChatMessage[]>;
   };
-  loginData: any[];
+  loginData: LoginHistory[];
   shoppingData: ShoppingSummary;
 }
+
+// --- Raw data interfaces --- //
+
+/** Shape of a raw direct message in the JSON-based DM data */
+interface RawDMMessage {
+  Date: string;
+  From?: string;
+  Content?: string;
+}
+
+/** Shape of the raw TikTok data you receive. Extend or adjust as needed. */
+export interface RawTikTokData {
+  Profile?: {
+    [key: string]: unknown;
+    "Profile Info"?: string;
+    "Profile Information"?: {
+      ProfileMap?: {
+        userName?: string;
+        birthDate?: string;
+      };
+    };
+    userName?: string;
+    birthDate?: string;
+  };
+  "Direct Messages"?: {
+    "Chat History"?: {
+      ChatHistory?: string | Record<string, RawDMMessage[]>;
+    };
+  };
+  Activity?: {
+    "Login History"?: {
+      LoginHistoryList?: string | LoginHistory[];
+    };
+  };
+  "TikTok Shopping"?: unknown;
+  "Tiktok Shopping"?: unknown;
+  name?: string;
+  birthDate?: string;
+}
+
+/** Raw product inside an order history object */
+interface OrderHistoryProduct {
+  product_name?: string;
+  variation_name?: string;
+  quantity?: number;
+}
+
+/** Raw order history object */
+interface OrderHistory {
+  order_date?: string;
+  order_status?: string;
+  total_price?: string; // e.g., "10.68 USD"
+  Products?: OrderHistoryProduct[];
+}
+
+// =======================
+// Functions
+// =======================
 
 export function parseShoppingTxt(shoppingText: string): ShoppingSummary {
   console.log("[parseShoppingTxt] Raw Shopping Text:", shoppingText);
@@ -257,7 +318,7 @@ export function parseShoppingTxt(shoppingText: string): ShoppingSummary {
 /**
  * Parses the *JSON-based* shopping data from "OrderHistories".
  */
-function parseShoppingJSON(orderHistObj: Record<string, any>): ShoppingSummary {
+function parseShoppingJSON(orderHistObj: Record<string, OrderHistory>): ShoppingSummary {
   console.log("[parseShoppingJSON] orderHistObj:", orderHistObj);
 
   let totalSpending = 0;
@@ -277,7 +338,8 @@ function parseShoppingJSON(orderHistObj: Record<string, any>): ShoppingSummary {
       if (!isNaN(numericPrice)) {
         totalSpending += numericPrice;
       }
-    } catch (e) {
+    } catch {
+      // Removed unused error variable
       // ignore parse errors
     }
 
@@ -299,7 +361,7 @@ function parseShoppingJSON(orderHistObj: Record<string, any>): ShoppingSummary {
         orderStatus,
       });
     } else {
-      productList.forEach((p: any) => {
+      productList.forEach((p: OrderHistoryProduct) => {
         purchasedItems.push({
           orderId,
           orderDate,
@@ -326,7 +388,7 @@ function parseShoppingJSON(orderHistObj: Record<string, any>): ShoppingSummary {
  * Main function: unifies data from either a JSON export or a ZIP-to-JSON conversion 
  * into a consistent structured object.
  */
-export function processTikTokData(data: any, myUsername: string): ProcessedTikTokData {
+export function processTikTokData(data: RawTikTokData, myUsername: string): ProcessedTikTokData {
   console.log("[processTikTokData] Received data for user:", myUsername);
   console.log("[processTikTokData] Top-level keys in data:", Object.keys(data || {}));
 
@@ -350,28 +412,29 @@ export function processTikTokData(data: any, myUsername: string): ProcessedTikTo
     // Attempt JSON-based
     profileData = {
       name:
-        data?.name ||
-        data?.Profile?.["Profile Information"]?.ProfileMap?.userName ||
-        data?.Profile?.userName ||
+        (data?.name as string) ||
+        (data?.Profile?.["Profile Information"] as any)?.ProfileMap?.userName ||
+        (data?.Profile as any)?.userName ||
         "Unknown",
       birthDate:
-        data?.birthDate ||
-        data?.Profile?.["Profile Information"]?.ProfileMap?.birthDate ||
-        data?.Profile?.birthDate ||
+        (data?.birthDate as string) ||
+        (data?.Profile?.["Profile Information"] as any)?.ProfileMap?.birthDate ||
+        (data?.Profile as any)?.birthDate ||
         "Unknown",
     };
     console.log("[processTikTokData] Profile info read from JSON-like data:", profileData);
   }
 
   // 2) Direct Messages
-  let dmSummaryObj: DMSummary = {};
-  let sentMessagesList: SentMessage[] = [];
-  let chatMessages: Record<string, ChatMessage[]> = {};
+  // Use const because we never reassign these
+  const dmSummaryObj: DMSummary = {};
+  const sentMessagesList: SentMessage[] = [];
+  const chatMessages: Record<string, ChatMessage[]> = {};
 
   if (typeof data["Direct Messages"]?.["Chat History"]?.ChatHistory === "string") {
     // .txt-based DMs
     console.log("[processTikTokData] DM data is a single TXT string. Parsing as text...");
-    const dmText = data["Direct Messages"]["Chat History"].ChatHistory;
+    const dmText = data["Direct Messages"]!["Chat History"]!.ChatHistory as string;
     const threads = dmText.split(">>>").filter((s: string) => s.trim().length > 0);
     threads.forEach((threadText: string) => {
       const lines = threadText.split("\n").filter((s: string) => s.trim().length > 0);
@@ -391,7 +454,7 @@ export function processTikTokData(data: any, myUsername: string): ProcessedTikTo
           const sender = match[2].trim();
           const message = match[3].trim();
           chatMessages[contact].push({ date, sender, message });
-          if (sender.toLowerCase() === myUsername) {
+          if (sender.toLowerCase() === myUsername.toLowerCase()) {
             sentMessagesList.push({ Contact: contact, Date: date });
           }
         }
@@ -401,7 +464,7 @@ export function processTikTokData(data: any, myUsername: string): ProcessedTikTo
   } else {
     // JSON-based DMs
     console.log("[processTikTokData] DM data is JSON-like. Parsing as object...");
-    const dmDataRaw = data["Direct Messages"]?.["Chat History"]?.ChatHistory || {};
+    const dmDataRaw = (data["Direct Messages"]?.["Chat History"] as { ChatHistory?: Record<string, RawDMMessage[]> })?.ChatHistory || {};
     Object.keys(dmDataRaw).forEach((threadName: string) => {
       const contact = threadName
         .replace("Chat History with", "")
@@ -411,13 +474,13 @@ export function processTikTokData(data: any, myUsername: string): ProcessedTikTo
       const messages = dmDataRaw[threadName];
       if (Array.isArray(messages) && messages.length > 0) {
         dmSummaryObj[contact] = messages.length;
-        chatMessages[contact] = messages.map((msg: any) => ({
+        chatMessages[contact] = messages.map((msg: RawDMMessage) => ({
           date: msg.Date,
-          sender: msg.From || "Unknown",
+          sender: msg.From ? msg.From : "Unknown",
           message: msg.Content || "",
         }));
-        messages.forEach((msg: any) => {
-          if (msg.From && msg.From.toLowerCase() === myUsername) {
+        messages.forEach((msg: RawDMMessage) => {
+          if (msg.From && msg.From.toLowerCase() === myUsername.toLowerCase()) {
             sentMessagesList.push({ Contact: contact, Date: msg.Date });
           }
         });
@@ -427,10 +490,10 @@ export function processTikTokData(data: any, myUsername: string): ProcessedTikTo
 
   // 3) Login History
   console.log("[processTikTokData] Checking login history...");
-  let loginData: any[] = [];
+  let loginData: LoginHistory[] = [];
   if (typeof data.Activity?.["Login History"]?.["LoginHistoryList"] === "string") {
     // .txt-based
-    const text = data.Activity["Login History"]["LoginHistoryList"];
+    const text = data.Activity["Login History"]!["LoginHistoryList"] as string;
     loginData = text
       .split("\n")
       .filter((line: string) => line.trim().length > 0)
@@ -438,7 +501,7 @@ export function processTikTokData(data: any, myUsername: string): ProcessedTikTo
     console.log("[processTikTokData] Login history from TXT. Count:", loginData.length);
   } else {
     // JSON-based
-    loginData = data.Activity?.["Login History"]?.["LoginHistoryList"] || [];
+    loginData = (data.Activity?.["Login History"] as { LoginHistoryList?: LoginHistory[] })?.LoginHistoryList || [];
     console.log("[processTikTokData] Login history from JSON-like. Count:", loginData.length);
   }
 
@@ -466,7 +529,7 @@ export function processTikTokData(data: any, myUsername: string): ProcessedTikTo
     shoppingData = parseShoppingTxt(shoppingDataRaw);
   } else if (typeof shoppingDataRaw === "object") {
     console.log("[processTikTokData] 'TikTok Shopping' is an object. Keys:", Object.keys(shoppingDataRaw));
-    const oh = shoppingDataRaw["Order History"];
+    const oh = (shoppingDataRaw as Record<string, unknown>)["Order History"];
     console.log("[processTikTokData] Inside 'TikTok Shopping', 'Order History' =>", oh);
 
     if (!oh) {
@@ -477,13 +540,14 @@ export function processTikTokData(data: any, myUsername: string): ProcessedTikTo
       shoppingData = parseShoppingTxt(oh);
     } else if (typeof oh === "object") {
       // typical JSON approach => oh.OrderHistories = { "some_id": {...}, ... }
-      console.log("[processTikTokData] 'Order History' is an object. Checking oh.OrderHistories =>", oh.OrderHistories);
-      if (oh.OrderHistories && typeof oh.OrderHistories === "object") {
+      const ohObj = oh as { OrderHistories?: Record<string, OrderHistory> } & Partial<ShoppingSummary>;
+      console.log("[processTikTokData] 'Order History' is an object. Checking oh.OrderHistories =>", ohObj.OrderHistories);
+      if (ohObj.OrderHistories && typeof ohObj.OrderHistories === "object") {
         console.log("[processTikTokData] Found 'OrderHistories' => parseShoppingJSON()");
-        shoppingData = parseShoppingJSON(oh.OrderHistories);
-      } else if ("totalSpending" in oh && "totalOrders" in oh) {
+        shoppingData = parseShoppingJSON(ohObj.OrderHistories);
+      } else if ("totalSpending" in ohObj && "totalOrders" in ohObj) {
         console.log("[processTikTokData] 'Order History' already has totalSpending/Orders. Using directly.");
-        shoppingData = oh;
+        shoppingData = ohObj as ShoppingSummary;
       } else {
         console.log("[processTikTokData] 'Order History' object not recognized. Fallback => 0.");
       }
