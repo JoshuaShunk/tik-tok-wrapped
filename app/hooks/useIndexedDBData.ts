@@ -9,7 +9,7 @@ export interface StoredData extends ProcessedTikTokData {
   timestamp: number;
 }
 
-export default function useIndexedDBData(myUsername: string, reloadKey: any) {
+export default function useIndexedDBData(myUsername: string, reloadKey: string | number) {
   const [data, setData] = useState<StoredData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export default function useIndexedDBData(myUsername: string, reloadKey: any) {
         } else {
           setData(null);
         }
-      } catch (err) {
+      } catch {
         setError("Error loading stored data.");
       }
       setLoading(false);

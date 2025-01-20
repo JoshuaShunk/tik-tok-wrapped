@@ -20,17 +20,14 @@ import Paper from "@mui/material/Paper";
 import { DataGrid, GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
 import ClientHeader from "./components/ClientHeader";
 
-import {
-  getTikTokData,
-  setTikTokData,
-  removeTikTokData,
-} from "@/app/utils/dbHelpers";
+import { setTikTokData, removeTikTokData } from "@/app/utils/dbHelpers";
 import {
   processTikTokData,
   ProfileData,
   LoginHistory,
   SentMessage,
   ShoppingSummary,
+  RawTikTokData, // Imported for proper typing
 } from "@/app/utils/dataProcessing";
 import { prepareChartData, prepareLoginChartData } from "@/app/utils/chatUtils";
 import useIndexedDBData from "@/app/hooks/useIndexedDBData";
@@ -63,7 +60,8 @@ export default function HomePage() {
   const [confirmed, setConfirmed] = useState<boolean>(false);
   const [showConfirmationPopup, setShowConfirmationPopup] =
     useState<boolean>(false);
-  const [tempJsonData, setTempJsonData] = useState<any>(null);
+  // Line 66: Replace any with RawTikTokData
+  const [tempJsonData, setTempJsonData] = useState<RawTikTokData | null>(null);
 
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -76,10 +74,7 @@ export default function HomePage() {
   const FRESH_THRESHOLD = 2 * 60 * 60 * 1000; // 2 hours
 
   // Load stored data from IndexedDB
-  const {
-    data: storedData,
-    loading,
-  } = useIndexedDBData(myUsername, reloadKey);
+  const { data: storedData, loading } = useIndexedDBData(myUsername, reloadKey);
 
   useEffect(() => {
     if (storedData) {
@@ -88,8 +83,9 @@ export default function HomePage() {
       setDmSummary(storedData.dmData.dmSummaryObj);
       setSentMessages(storedData.dmData.sentMessagesList);
 
+      // Line 92: Remove explicit any by annotating login as LoginHistory.
       const loginList: LoginHistory[] = storedData.loginData.map(
-        (login: any) => ({
+        (login: LoginHistory) => ({
           Date: login.Date || "Unknown",
         })
       );
@@ -100,7 +96,7 @@ export default function HomePage() {
       }
       setConfirmed(isFresh);
     }
-  }, [storedData]);
+  }, [storedData, FRESH_THRESHOLD]); // Added FRESH_THRESHOLD to the dependency array
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -120,9 +116,12 @@ export default function HomePage() {
             setDmSummary(dmData.dmSummaryObj);
             setSentMessages(dmData.sentMessagesList);
 
-            const loginList: LoginHistory[] = loginData.map((login: any) => ({
-              Date: login.Date || "Unknown",
-            }));
+            // Line 123: Type login as LoginHistory instead of any.
+            const loginList: LoginHistory[] = loginData.map(
+              (login: LoginHistory) => ({
+                Date: login.Date || "Unknown",
+              })
+            );
             setLoginHistory(loginList);
 
             if (shoppingData) {
@@ -141,7 +140,7 @@ export default function HomePage() {
         const result = event.target?.result;
         if (result && typeof result === "string") {
           try {
-            const jsonData = JSON.parse(result);
+            const jsonData = JSON.parse(result) as RawTikTokData;
             await removeTikTokData();
             setReloadKey((prev) => prev + 1);
             setTempJsonData(jsonData);
@@ -152,9 +151,12 @@ export default function HomePage() {
             setDmSummary(dmData.dmSummaryObj);
             setSentMessages(dmData.sentMessagesList);
 
-            const loginList: LoginHistory[] = loginData.map((login: any) => ({
-              Date: login.Date || "Unknown",
-            }));
+            // Line 155: Using LoginHistory rather than any for mapping.
+            const loginList: LoginHistory[] = loginData.map(
+              (login: LoginHistory) => ({
+                Date: login.Date || "Unknown",
+              })
+            );
             setLoginHistory(loginList);
 
             if (shoppingData) {
