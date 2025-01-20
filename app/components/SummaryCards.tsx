@@ -488,7 +488,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
             {slidesData[currentIndex].content}
           </div>
           <div className="absolute bottom-3 left-3 text-sm opacity-70">
-            <p>© 2025 MyApp Wrapped</p>
+            <p>tik-tokwrapped.com</p>
           </div>
         </div>
         <div className="flex items-center justify-between mt-4">
