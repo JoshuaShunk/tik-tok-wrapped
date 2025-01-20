@@ -91,8 +91,6 @@ function getBusiestMonth(logins: LoginHistory[]) {
 
 /**
  * Renders unique, bold decorative shapes for each slide.
- * These shapes combine different geometries (circles, diamonds, triangles)
- * with gradients or bold solid colors and are positioned to fill the card.
  */
 function renderDecorativeShapes(slideKey: string) {
   switch (slideKey) {
@@ -270,171 +268,175 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
   // Use first DM friend for main DM card
   const dmsTopFriend = top5Friends.length ? top5Friends[0] : null;
 
-  // Slides Ordering:
-  // 1. Main Shopping Card
-  // 2. Top 5 Expensive Shopping Items Card
-  // 3. Main DM Card
-  // 4. Top 5 DM Friends Card
-  // 5. Login Stats Card
-  // 6. About You Card
-  // 7. Thank You Card
-  const slidesData = [
-    {
-      key: "slide1-shopping",
-      backgroundStyle:
-        "bg-gradient-to-br from-yellow-400 to-pink-400 relative overflow-hidden",
-      title: "Shopping Stats",
-      content: (
-        <div className="text-center">
-          <p className="text-xs uppercase tracking-wide opacity-80">
-            My total spend
-          </p>
-          <p className="text-4xl font-bold my-4">
-            ${shoppingSummary?.totalSpending.toFixed(2) || "0.00"}
-          </p>
-          <p className="text-xs uppercase opacity-80">
-            {shoppingTopItem
-              ? `Top Item: ${shoppingTopItem.name} (${shoppingTopItem.qty})`
-              : "No Purchases"}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "slide2-shopping-top5",
-      backgroundStyle:
-        "bg-gradient-to-br from-red-500 to-amber-500 relative overflow-hidden",
-      title: "Top 5 Expensive Items",
-      content: (
-        <div className="flex flex-col items-center">
-          {top5Expensive.length > 0 ? (
-            // Ordered list with numbers, extra spacing, and left-aligned items
-            <ol className="space-y-4">
-              {top5Expensive.map((item, idx) => (
-                <li key={item.name} className="flex items-center space-x-2">
-                  <span className="text-2xl font-bold">{idx + 1}</span>
-                  <span className="text-lg">
-                    {item.name} (${item.cost.toFixed(2)})
-                  </span>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="text-xs opacity-80">No Purchases</p>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "slide3-dm",
-      backgroundStyle:
-        "bg-gradient-to-br from-blue-600 to-blue-900 relative overflow-hidden",
-      title: "DM Stats",
-      content: (
-        <div className="text-center">
-          <p className="text-xs uppercase tracking-wide opacity-80">
-            My total messages
-          </p>
-          <p className="text-4xl font-bold my-4">{sentMessages.length}</p>
-          <p className="text-xs uppercase opacity-80">
-            {dmsTopFriend
-              ? `Top Friend: ${dmsTopFriend.contact} (${dmsTopFriend.total} msgs)`
-              : "No DMs"}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: "slide4-dm-top5",
-      backgroundStyle:
-        "bg-gradient-to-br from-indigo-500 to-violet-500 relative overflow-hidden",
-      title: "Top 5 DM Friends",
-      content: (
-        <div className="flex flex-col items-center">
-          {top5Friends.length > 0 ? (
-            <ol className="space-y-4">
-              {top5Friends.map((friend, idx) => (
-                <li
-                  key={friend.contact}
-                  className="flex items-center space-x-2"
-                >
-                  <span className="text-2xl font-bold">{idx + 1}</span>
-                  <span className="text-lg">
-                    {friend.contact} ({friend.total} msgs)
-                  </span>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p className="text-xs opacity-80">No DM activity</p>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: "slide5-login",
-      backgroundStyle:
-        "bg-gradient-to-br from-green-600 to-green-900 relative overflow-hidden",
-      title: "Login Stats",
-      content: (
-        <>
-          <p className="text-lg mt-4 mb-4">
-            Total Logins:
-            <span className="font-bold text-green-300"> {totalLogins}</span>
-          </p>
-          <p className="text-sm">
-            Busiest Month:{" "}
-            <span className="font-semibold">{busiest.busiestMonth}</span>
-            <span className="opacity-80"> ({busiest.logins} logins)</span>
-          </p>
-        </>
-      ),
-    },
-    {
-      key: "slide6-profile",
-      backgroundStyle:
-        "bg-gradient-to-br from-orange-500 to-amber-600 relative overflow-hidden",
-      title: "About You",
-      content: (
-        <>
-          <p className="text-xl font-semibold mb-4">
-            {profile?.name || "Unknown User"}
-          </p>
-          <p className="text-sm opacity-90 mb-4">
-            Birth Date: {profile?.birthDate || "Unknown"}
-          </p>
-          <p className="text-sm">
-            You sent a total of{" "}
-            <span className="font-bold text-yellow-100">
-              {sentMessages.length}
-            </span>{" "}
-            messages!
-          </p>
-        </>
-      ),
-    },
-    {
-      key: "slide7-thanks",
-      backgroundStyle:
-        "bg-gradient-to-br from-purple-700 to-fuchsia-900 relative overflow-hidden",
-      title: "Thank You!",
-      content: (
-        <>
-          <p className="text-md mt-4">Thanks for being part of our year!</p>
-          <p className="text-sm opacity-90 mt-2">
-            Share these cards to show off your Wrapped stats.
-          </p>
-        </>
-      ),
-    },
-  ];
+  // Wrap slidesData in useMemo so its identity is stable across renders.
+  const slidesData = useMemo(
+    () => [
+      {
+        key: "slide1-shopping",
+        backgroundStyle:
+          "bg-gradient-to-br from-yellow-400 to-pink-400 relative overflow-hidden",
+        title: "Shopping Stats",
+        content: (
+          <div className="text-center">
+            <p className="text-xs uppercase tracking-wide opacity-80">
+              My total spend
+            </p>
+            <p className="text-4xl font-bold my-4">
+              ${shoppingSummary?.totalSpending.toFixed(2) || "0.00"}
+            </p>
+            <p className="text-xs uppercase opacity-80">
+              {shoppingTopItem
+                ? `Top Item: ${shoppingTopItem.name} (${shoppingTopItem.qty})`
+                : "No Purchases"}
+            </p>
+          </div>
+        ),
+      },
+      {
+        key: "slide2-shopping-top5",
+        backgroundStyle:
+          "bg-gradient-to-br from-red-500 to-amber-500 relative overflow-hidden",
+        title: "Top 5 Expensive Items",
+        content: (
+          <div className="flex flex-col items-center">
+            {top5Expensive.length > 0 ? (
+              <ol className="space-y-4">
+                {top5Expensive.map((item, idx) => (
+                  <li key={item.name} className="flex items-center space-x-2">
+                    <span className="text-2xl font-bold">{idx + 1}</span>
+                    <span className="text-lg">
+                      {item.name} (${item.cost.toFixed(2)})
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-xs opacity-80">No Purchases</p>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "slide3-dm",
+        backgroundStyle:
+          "bg-gradient-to-br from-blue-600 to-blue-900 relative overflow-hidden",
+        title: "DM Stats",
+        content: (
+          <div className="text-center">
+            <p className="text-xs uppercase tracking-wide opacity-80">
+              My total messages
+            </p>
+            <p className="text-4xl font-bold my-4">{sentMessages.length}</p>
+            <p className="text-xs uppercase opacity-80">
+              {dmsTopFriend
+                ? `Top Friend: ${dmsTopFriend.contact} (${dmsTopFriend.total} msgs)`
+                : "No DMs"}
+            </p>
+          </div>
+        ),
+      },
+      {
+        key: "slide4-dm-top5",
+        backgroundStyle:
+          "bg-gradient-to-br from-indigo-500 to-violet-500 relative overflow-hidden",
+        title: "Top 5 DM Friends",
+        content: (
+          <div className="flex flex-col items-center">
+            {top5Friends.length > 0 ? (
+              <ol className="space-y-4">
+                {top5Friends.map((friend, idx) => (
+                  <li
+                    key={friend.contact}
+                    className="flex items-center space-x-2"
+                  >
+                    <span className="text-2xl font-bold">{idx + 1}</span>
+                    <span className="text-lg">
+                      {friend.contact} ({friend.total} msgs)
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="text-xs opacity-80">No DM activity</p>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: "slide5-login",
+        backgroundStyle:
+          "bg-gradient-to-br from-green-600 to-green-900 relative overflow-hidden",
+        title: "Login Stats",
+        content: (
+          <>
+            <p className="text-lg mt-4 mb-4">
+              Total Logins:{" "}
+              <span className="font-bold text-green-300"> {totalLogins}</span>
+            </p>
+            <p className="text-sm">
+              Busiest Month:{" "}
+              <span className="font-semibold">{busiest.busiestMonth}</span>
+              <span className="opacity-80"> ({busiest.logins} logins)</span>
+            </p>
+          </>
+        ),
+      },
+      {
+        key: "slide6-profile",
+        backgroundStyle:
+          "bg-gradient-to-br from-orange-500 to-amber-600 relative overflow-hidden",
+        title: "About You",
+        content: (
+          <>
+            <p className="text-xl font-semibold mb-4">
+              {profile?.name || "Unknown User"}
+            </p>
+            <p className="text-sm opacity-90 mb-4">
+              Birth Date: {profile?.birthDate || "Unknown"}
+            </p>
+            <p className="text-sm">
+              You sent a total of{" "}
+              <span className="font-bold text-yellow-100">
+                {sentMessages.length}
+              </span>{" "}
+              messages!
+            </p>
+          </>
+        ),
+      },
+      {
+        key: "slide7-thanks",
+        backgroundStyle:
+          "bg-gradient-to-br from-purple-700 to-fuchsia-900 relative overflow-hidden",
+        title: "Thank You!",
+        content: (
+          <>
+            <p className="text-md mt-4">Thanks for being part of our year!</p>
+            <p className="text-sm opacity-90 mt-2">
+              Share these cards to show off your Wrapped stats.
+            </p>
+          </>
+        ),
+      },
+    ],
+    [
+      shoppingSummary,
+      shoppingTopItem,
+      top5Expensive,
+      top5Friends,
+      profile,
+      sentMessages,
+      loginHistory,
+      dmSummary,
+    ]
+  );
 
-  // Prepare refs for each slide
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const cardRefs = useMemo(() => slidesData.map(() => useRef<HTMLDivElement>(null)), [slidesData]);
+  // Instead of mapping over slidesData to create an array of refs,
+  // create a single ref object that will hold the DOM nodes by index.
+  const cardRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const handleDownload = async (idx: number) => {
-    const node = cardRefs[idx].current;
+    const node = cardRefs.current[idx];
     if (!node) return;
     try {
       const dataUrl = await toPng(node);
@@ -446,6 +448,8 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
       console.error("Error generating PNG:", err);
     }
   };
+
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const prevSlide = () =>
     setCurrentIndex(
@@ -465,7 +469,10 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
           X
         </button>
         <div
-          ref={cardRefs[currentIndex]}
+          ref={(el) => {
+            // Save the current slide's ref.
+            cardRefs.current[currentIndex] = el;
+          }}
           className={`relative aspect-[9/16] w-full overflow-hidden flex flex-col items-center justify-center text-white p-4 rounded-md shadow-xl ${slidesData[currentIndex].backgroundStyle}`}
         >
           {/* Background overlay pattern */}
@@ -476,7 +483,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
           <h2 className="absolute top-12 left-1/2 transform -translate-x-1/2 text-4xl font-extrabold drop-shadow-xl mb-6 tracking-wide title-style font-comic-sans">
             {slidesData[currentIndex].title}
           </h2>
-          {/* Center content container with added vertical spacing */}
+          {/* Center content container */}
           <div className="w-full max-w-xs mx-auto text-center z-10 mt-24">
             {slidesData[currentIndex].content}
           </div>
