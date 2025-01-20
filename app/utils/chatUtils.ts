@@ -18,8 +18,8 @@ export function getRandomColor(): string {
  */
 export function prepareChartData(
   sentMessages: SentMessage[]
-): { labels: string[]; datasets: any[] } {
-  const chartData: { labels: string[]; datasets: any[] } = {
+): { labels: string[]; datasets: { label: string; data: number[]; fill: boolean; borderColor: string; tension: number }[] } {
+  const chartData: { labels: string[]; datasets: { label: string; data: number[]; fill: boolean; borderColor: string; tension: number }[] } = {
     labels: [],
     datasets: [],
   };
@@ -60,7 +60,7 @@ export function prepareChartData(
  */
 export function prepareLoginChartData(
   loginHistory: LoginHistory[]
-): { labels: string[]; datasets: any[] } {
+): { labels: string[]; datasets: { label: string; data: number[]; fill: boolean; borderColor: string; tension: number }[] } {
   const grouped: Record<string, number> = {};
 
   loginHistory.forEach((login) => {

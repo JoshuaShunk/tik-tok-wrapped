@@ -3,17 +3,17 @@
 
 import React, { useState } from "react";
 import LZString from "lz-string";
-import { processTikTokData } from "@/app/utils/dataProcessing";
+import {
+  processTikTokData,
+  ProcessedTikTokData,
+  RawTikTokData,
+  ProfileData,
+} from "@/app/utils/dataProcessing";
 import { setTikTokData } from "@/app/utils/dbHelpers";
 
 interface FileUploaderProps {
   myUsername: string;
-  onDataProcessed: (data: {
-    profileData: any;
-    dmData: any;
-    loginData: any;
-    shoppingData: any;
-  }) => void;
+  onDataProcessed: (data: ProcessedTikTokData) => void;
 }
 
 export default function FileUploader({
@@ -23,8 +23,10 @@ export default function FileUploader({
   const [error, setError] = useState<string | null>(null);
   const [showConfirmationPopup, setShowConfirmationPopup] =
     useState<boolean>(false);
-  const [tempJsonData, setTempJsonData] = useState<any>(null);
-  const [profilePreview, setProfilePreview] = useState<any>(null);
+  const [tempJsonData, setTempJsonData] = useState<RawTikTokData | null>(null);
+  const [profilePreview, setProfilePreview] = useState<ProfileData | null>(
+    null
+  );
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError(null);
@@ -35,7 +37,7 @@ export default function FileUploader({
         const result = event.target?.result;
         if (result && typeof result === "string") {
           try {
-            const jsonData = JSON.parse(result);
+            const jsonData = JSON.parse(result) as RawTikTokData;
             setTempJsonData(jsonData);
             const { profileData, dmData, loginData, shoppingData } =
               processTikTokData(jsonData, myUsername);

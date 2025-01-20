@@ -9,7 +9,26 @@ import JSZip from "jszip";
  * (case-insensitive) so that the processing function can extract 
  * the Username and Birthdate.
  */
-export async function parseZipData(file: File): Promise<any> {
+interface ParsedZipData {
+  Profile: {
+    "Profile Info": string;
+  };
+  "Direct Messages": {
+    "Chat History": {
+      ChatHistory: string;
+    };
+  };
+  "TikTok Shopping": {
+    "Order History": string;
+  };
+  Activity: {
+    "Login History": {
+      LoginHistoryList: string;
+    };
+  };
+}
+
+export async function parseZipData(file: File): Promise<ParsedZipData> {
   const zip = await JSZip.loadAsync(file);
   const fileContents: Record<string, string> = {};
 
