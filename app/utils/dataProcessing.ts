@@ -413,13 +413,13 @@ export function processTikTokData(data: RawTikTokData, myUsername: string): Proc
     profileData = {
       name:
         (data?.name as string) ||
-        (data?.Profile?.["Profile Information"] as any)?.ProfileMap?.userName ||
-        (data?.Profile as any)?.userName ||
+        (data?.Profile?.["Profile Information"] as { ProfileMap?: { userName?: string } })?.ProfileMap?.userName ||
+        (data?.Profile as { userName?: string })?.userName ||
         "Unknown",
       birthDate:
         (data?.birthDate as string) ||
-        (data?.Profile?.["Profile Information"] as any)?.ProfileMap?.birthDate ||
-        (data?.Profile as any)?.birthDate ||
+        (data?.Profile?.["Profile Information"] as { ProfileMap?: { birthDate?: string } })?.ProfileMap?.birthDate ||
+        (data?.Profile as { birthDate?: string })?.birthDate ||
         "Unknown",
     };
     console.log("[processTikTokData] Profile info read from JSON-like data:", profileData);
