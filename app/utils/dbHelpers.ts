@@ -15,14 +15,24 @@ export async function openDatabase(): Promise<IDBDatabase> {
   });
 }
 
-export async function getTikTokData(): Promise<string | null> {
+export interface TikTokDataItem {
+  id: string;
+  data: string;
+  timestamp: number;
+}
+
+export async function getTikTokData(): Promise<TikTokDataItem | null> {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
     const transaction = db.transaction("DataStore", "readonly");
     const store = transaction.objectStore("DataStore");
     const request = store.get("tikTokData");
     request.onsuccess = () => {
-      resolve(request.result ? request.result.data : null);
+      if (request.result) {
+        resolve(request.result);
+      } else {
+        resolve(null);
+      }
     };
     request.onerror = () => reject(request.error);
   });
@@ -33,15 +43,14 @@ export async function setTikTokData(data: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction("DataStore", "readwrite");
     const store = transaction.objectStore("DataStore");
-    const request = store.put({ id: "tikTokData", data });
+    // Save the compressed JSON data along with a timestamp:
+    const item: TikTokDataItem = { id: "tikTokData", data, timestamp: Date.now() };
+    const request = store.put(item);
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
   });
 }
 
-/**
- * Remove the stored TikTok data from IndexedDB.
- */
 export async function removeTikTokData(): Promise<void> {
   const db = await openDatabase();
   return new Promise((resolve, reject) => {
@@ -53,13 +62,16 @@ export async function removeTikTokData(): Promise<void> {
   });
 }
 
+/**
+ * Utility to read the stored data from IndexedDB.
+ */
 export async function fetchDataFromDB(
   setError: React.Dispatch<React.SetStateAction<string | null>>
 ): Promise<any | null> {
   try {
-    const dataString = await getTikTokData();
-    if (!dataString) return null;
-    const decompressed = LZString.decompressFromUTF16(dataString);
+    const item = await getTikTokData();
+    if (!item) return null;
+    const decompressed = LZString.decompressFromUTF16(item.data);
     if (!decompressed) throw new Error("Decompression failed");
     return JSON.parse(decompressed);
   } catch {

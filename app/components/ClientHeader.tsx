@@ -19,7 +19,7 @@ export default function ClientHeader({
             onClick={onClearData}
             className="px-6 py-2 bg-gradient-to-r from-pastel-red to-pastel-red-dark text-white font-semibold rounded-full shadow-lg hover:from-pastel-red-light hover:to-pastel-red transition-transform transform hover:scale-105"
           >
-            Upload New File
+            Purge Data
           </button>
           <Link
             href="/chat"

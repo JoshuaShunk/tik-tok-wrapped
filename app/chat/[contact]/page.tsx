@@ -5,43 +5,38 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { fetchDataFromDB } from "@/app/utils/dbHelpers";
+import { processTikTokData } from "@/app/utils/dataProcessing";
 
-interface Message {
-  Content: string;
-  Date: string;
-  From: string;
+interface ChatMessage {
+  date: string;
+  sender: string;
+  message: string;
 }
 
 export default function ChatDetailPage() {
   const { contact } = useParams<{ contact: string }>();
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const myUsername = "joshuashunk".toLowerCase();
 
   useEffect(() => {
     (async () => {
-      const data = await fetchDataFromDB(setError);
-      if (data) {
-        const dmData =
-          data["Direct Messages"]?.["Chat History"]?.ChatHistory || {};
-        let allMessages: Message[] = [];
-        Object.keys(dmData).forEach((threadName: string) => {
-          const threadContact = threadName
-            .replace("Chat History with", "")
-            .replace(":", "")
-            .trim()
-            .toLowerCase();
-          if (threadContact === contact?.toLowerCase()) {
-            const msgs = dmData[threadName];
-            if (Array.isArray(msgs)) {
-              allMessages = allMessages.concat(msgs);
-            }
+      const rawData = await fetchDataFromDB(setError);
+      if (rawData) {
+        const processed = processTikTokData(rawData, myUsername);
+        // Use the chatMessages property:
+        const dmChats = processed.dmData.chatMessages || {};
+        let msgs: ChatMessage[] = [];
+        Object.keys(dmChats).forEach((threadContact) => {
+          if (threadContact.toLowerCase() === contact?.toLowerCase()) {
+            msgs = msgs.concat(dmChats[threadContact]);
           }
         });
-        allMessages.sort(
-          (a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime()
+        msgs.sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
         );
-        setMessages(allMessages);
+        setMessages(msgs);
       }
     })();
   }, [contact]);
@@ -80,13 +75,13 @@ export default function ChatDetailPage() {
               <div
                 key={index}
                 className={`p-4 rounded shadow ${
-                  msg.From.toLowerCase() === "joshuashunk"
+                  msg.sender.toLowerCase() === myUsername
                     ? "bg-blue-100 text-right"
                     : "bg-gray-100 text-left"
                 }`}
               >
-                <p className="text-sm text-gray-600">{msg.Date}</p>
-                <p className="mt-1 text-lg">{msg.Content}</p>
+                <p className="text-sm text-gray-600">{msg.date}</p>
+                <p className="mt-1 text-lg">{msg.message}</p>
               </div>
             ))}
           </div>

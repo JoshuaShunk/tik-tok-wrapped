@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/chat/page.tsx
 "use client";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchDataFromDB } from "@/app/utils/dbHelpers";
-import List from "@mui/material/List";
+import { processTikTokData } from "@/app/utils/dataProcessing";import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import Divider from "@mui/material/Divider";
 import ListItemAvatar from "@mui/material/ListItemAvatar";
@@ -24,37 +24,32 @@ interface ChatSummary {
 export default function ChatPage() {
   const [chatSummaries, setChatSummaries] = useState<ChatSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const myUsername = "joshuashunk".toLowerCase();
 
   useEffect(() => {
     (async () => {
-      const data = await fetchDataFromDB(setError);
-      if (data) {
-        const dmData =
-          data["Direct Messages"]?.["Chat History"]?.ChatHistory || {};
+      const rawData = await fetchDataFromDB(setError);
+      if (rawData) {
+        const processed = processTikTokData(rawData, myUsername);
+        const dmChatMessages = processed.dmData.chatMessages; // Object where key = contact, value = ChatMessage[]
         const summaries: ChatSummary[] = [];
-
-        Object.keys(dmData).forEach((threadName: string) => {
-          const contact = threadName
-            .replace("Chat History with", "")
-            .replace(":", "")
-            .trim();
-          const messages = dmData[threadName];
+        Object.keys(dmChatMessages).forEach((contactKey: string) => {
+          const messages = dmChatMessages[contactKey];
           if (Array.isArray(messages) && messages.length > 0) {
             const sortedMessages = [...messages].sort(
-              (a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime()
+              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
             );
-            const lastMessage = sortedMessages[sortedMessages.length - 1];
+            const lastMsg = sortedMessages[sortedMessages.length - 1];
             summaries.push({
-              contact: contact.toLowerCase(),
+              contact: contactKey.toLowerCase(),
               totalMessages: messages.length,
               lastMessage: {
-                sender: lastMessage.From || "Unknown", // Get the sender's name
-                content: lastMessage.Content || "No content", // Get the message content
+                sender: lastMsg.sender || "Unknown",
+                content: lastMsg.message || "No content",
               },
             });
           }
         });
-
         setChatSummaries(summaries);
       }
     })();
@@ -67,7 +62,7 @@ export default function ChatPage() {
           &larr; Back to Dashboard
         </Link>
         <h2 className="text-5xl font-bold mx-auto">Your Chats</h2>
-        <div className="w-24"></div> {/* Spacer to balance the layout */}
+        <div className="w-24"></div>
       </div>
       <div className="pt-6 px-6">
         {error && <p className="text-red-500 text-center">{error}</p>}
@@ -89,8 +84,8 @@ export default function ChatPage() {
                   <ListItemAvatar>
                     <Avatar
                       alt={chat.contact}
-                      src={`/static/images/avatar/${index + 1}.jpg`} // Replace with actual avatar URLs
-                      sx={{ width: 56, height: 56 }} // Larger avatar size
+                      src={`/static/images/avatar/${index + 1}.jpg`}
+                      sx={{ width: 56, height: 56 }}
                     />
                   </ListItemAvatar>
                   <Box sx={{ flexGrow: 1, ml: 2 }}>
@@ -112,22 +107,21 @@ export default function ChatPage() {
                       {chat.lastMessage.content}
                     </Typography>
                   </Box>
-                    <Typography
+                  <Typography
                     variant="body1"
                     sx={{
                       fontSize: "1rem",
                       color: "text.primary",
                       fontWeight: "medium",
-                      textAlign: "right", // Aligns the total messages count to the right
-                      flexShrink: 0, // Prevents it from shrinking when space is tight
-                      minWidth: "80px", // Optional: Consistent spacing
-                      paddingLeft: "16px", // Adds more left padding
+                      textAlign: "right",
+                      flexShrink: 0,
+                      minWidth: "80px",
+                      paddingLeft: "16px",
                     }}
-                    >
+                  >
                     {chat.totalMessages} messages
-                    </Typography>
+                  </Typography>
                 </ListItem>
-
                 {index < chatSummaries.length - 1 && (
                   <Divider variant="fullWidth" component="li" />
                 )}
