@@ -431,7 +431,7 @@ const SummaryCards: React.FC<SummaryCardsProps> = ({
 
   // Prepare refs for each slide
   const [currentIndex, setCurrentIndex] = useState(0);
-  const cardRefs = slidesData.map(() => useRef<HTMLDivElement>(null));
+  const cardRefs = useMemo(() => slidesData.map(() => useRef<HTMLDivElement>(null)), [slidesData]);
 
   const handleDownload = async (idx: number) => {
     const node = cardRefs[idx].current;
